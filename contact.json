@@ -1,0 +1,7 @@
+[
+  { "name": "Alice", "email": "alice@example.com", "type": "friend" },
+  { "name": "Bob", "email": "bob@work.com", "type": "colleague" },
+  { "name": "Charlie", "email": "charlie@gym.com", "type": "friend" },
+  { "name": "Dave", "email": "dave@work.com", "type": "colleague" },
+  { "name": "Eve", "email": "eve@family.com", "type": "family" }
+]

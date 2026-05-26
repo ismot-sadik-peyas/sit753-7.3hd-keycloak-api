@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Keycloak SPA Application A</title>
+    <style>
+    body { font-family: Arial, sans-serif }
+    button { margin: 5px; }
+    pre {
+      background: #f4f4f4;
+      padding: 10px;
+      max-height: 250px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+<h1>Single Page Application A</h1>
+
+<div style="display: flex; align-items: center; gap: 10px;">
+  <h3 id="name" style="margin: 0;">Guest</h3>
+  <img id="picture" src="" width="50px" height="50px" />
+</div>
+
+
+
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+  <p><strong>User Roles (configured in keycloak):</strong></p>
+  <p id="role"></p>
+  </div>
+
+
+    <div id="app">
+        <p id="status">Checking authentication status...</p>
+        <button id="loginBtn">Login</button>
+        <button id="idtokenBtn">ID token</button>
+        <button id="accesstokenBtn">Access token</button>
+        <button id="refreshBtn">Refresh</button>
+        <button id="logoutBtn">Logout</button>
+        <button id="adminBtn">Administration</button>
+        <button id="apicallBtn">Call Protected API</button>
+        
+    </div>
+  
+  <h3>API response</h3>
+  <pre id="apiResponse" style="background: #F0F8FF; padding: 10px;"></pre>
+
+  <h3>Token (Identity)</h3>
+    <pre id="idToken" style="background: #F0F8FF; padding: 10px;"></pre>
+
+
+ <h3>Token (Access)</h3>
+    <pre id="accessToken" style="background: #F0F8FF; padding: 10px;"></pre>
+       
+    
+    <script type="importmap">
+{
+  "imports": {
+    "keycloak-js": "./node_modules/keycloak-js/lib/keycloak.js"
+  }
+}
+</script>
+
+
+<script type="module">
+  import Keycloak from 'keycloak-js';
+  // 1. Configure the Keycloak instance
+const keycloak = new Keycloak({
+  url: 'http://localhost:8080', // Your Keycloak server URL
+  realm: 'iam-lab',             // Your realm name
+  clientId: 'week6app'             // Your client ID
+});
+
+// 2. Initialize the adapter, update auth status, roles and image if available
+try {
+  const authenticated = await keycloak.init({
+    //onLoad: 'login-required', // 'login-required' or 'check-sso'
+    onLoad:'check-sso',
+    checkLoginIframe: false
+  });
+  const statusElement = document.getElementById('status');
+  const uname = document.getElementById('name');
+  const role_cont = document.getElementById('role');
+  const roles = keycloak.tokenParsed?.realm_access?.roles || [];
+  const image = document.getElementById('picture');
+  if (authenticated) {
+    console.log('User is authenticated');
+    console.log('Token:', keycloak.token);
+     
+      statusElement.innerHTML = 'Authentication successful!';
+      statusElement.style.color = 'green';
+      uname.innerHTML = 'Welcome ' + keycloak.idTokenParsed.name;
+      if (keycloak.idTokenParsed.picture) {
+                image.src = keycloak.idTokenParsed.picture;
+            }
+            
+      role_cont.innerHTML = roles.map(role => `
+        <span style="background-color: #e3f2fd; color: #1976d2; padding: 6px 12px; border-radius: 16px; font-size: 14px; margin-right: 5px; display: inline-block;">
+          ${role}
+        </span>
+    `).join('');
+          
+  } else {
+    console.warn('User is not authenticated');
+    statusElement.innerHTML = 'Not Authenticated!';
+      statusElement.style.color = 'blue';
+     
+  }
+} catch (error) {
+  console.error('Failed to initialize Keycloak:', error);
+}
+
+// Triggered by Login Button
+function login() {
+    keycloak.login();
+}
+// Triggered by Login Button
+function logout() {
+    keycloak.logout();
+}
+
+function idtoken()
+{ 
+document.getElementById("idToken").textContent =JSON.stringify(keycloak.idTokenParsed, null, 2);
+}
+
+function accesstoken()
+{ 
+document.getElementById("accessToken").textContent =JSON.stringify(keycloak.tokenParsed, null, 2);
+}
+
+async function refresh()
+{ 
+try {
+    // Returns true if refreshed, false if still valid
+    //method only performs a refresh if the current access token is due to expire within the next 30 seconds
+    //If you want to force new token generation regardless of its current expiry time, pass -1 as the argument
+    
+    const refreshed = await keycloak.updateToken(30); 
+    if (refreshed) {
+      console.log('Token successfully refreshed');
+    } else {
+      console.log('Token is still valid, no refresh needed');
+    }
+  } catch (error) {
+    
+    console.error('Failed to refresh token or session expired:', error);
+    //keycloak.login(); 
+  }
+
+}
+
+function adminaccess()
+{
+if (keycloak.hasRealmRole('app-admin')) {
+    
+       
+      window.location.href = '/admin.html';
+    }
+    else {
+      alert("Access Denied: You do not have the 'admin' role.");
+    }
+    
+ 
+
+}
+
+async function loadCategories() {
+    const token = localStorage.getItem("access_token");
+    
+    // 1. Get the list of categories
+    const response = await fetch("http://localhost:3030/api/categories", {
+        headers: { Authorization: `Bearer ${keycloak.token}` }
+    });
+    
+    const categories = await response.json(); // ["friend", "colleague"]
+    
+    // 2. Clear old buttons
+    const container = document.getElementById("apicallBtn");
+    container.innerHTML = "";
+
+    // 3. Create a button for each category found
+    categories.forEach(cat => {
+        const btn = document.createElement("button");
+        btn.innerText = "Show " + cat;
+        btn.onclick = () => fetchContacts(cat); // Link button to function
+        container.appendChild(btn);
+    });
+}
+
+async function fetchContacts(category) {
+    const token = localStorage.getItem("access_token");
+    const response = await fetch(`http://localhost:3030/api/contacts/${category}`, {
+        headers: { Authorization: 'Bearer ${keycloak.token}1' }
+    });
+    const contacts = await response.json();
+    console.log("Contacts:", contacts);
+    document.getElementById("apiResponse").innerText = JSON.stringify(contacts, null, 2);
+}
+
+
+// Attach the function to the button in JS
+  const btn1 = document.getElementById('loginBtn');
+  btn1.addEventListener('click', login);
+  const btn2 = document.getElementById('logoutBtn');
+  btn2.addEventListener('click', logout);
+    const btn3 = document.getElementById('idtokenBtn');
+  btn3.addEventListener('click', idtoken);
+  const btn4 = document.getElementById('accesstokenBtn');
+  btn4.addEventListener('click', accesstoken);
+  const btn5 = document.getElementById('adminBtn');
+  btn5.addEventListener('click', adminaccess);
+  const btn6 = document.getElementById('refreshBtn');
+  btn6.addEventListener('click', refresh);
+  const btn7 = document.getElementById('apicallBtn');
+  btn7.addEventListener('click', loadCategories);
+</script>
+
+    
+</body>
+</html>
