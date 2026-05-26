@@ -1,9 +1,20 @@
 {
+  "name": "week6-api",
+  "version": "1.0.0",
+  "description": "Keycloak protected API for SIT753",
+  "main": "api_email.js",
+  "scripts": {
+    "start": "node api_email.js",
+    "test": "jest"
+  },
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^3.2.2",
     "keycloak-js": "^26.2.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
